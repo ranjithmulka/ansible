@@ -1,0 +1,98 @@
+- hosts: all
+  become: true
+  pre_tasks:
+
+  - name: install updates (CentOS)
+    tags: always
+    dnf:
+      update_cache: yes  
+    when: ansible_distribution == "CentOS"
+
+  - name: install net_tools (Ubuntu)
+    tags: always
+    apt:
+      update-cache: yes  
+    when: ansible_distribution == "Ubuntu"
+ 
+- hosts: web_servers
+  become: true
+  tasks:  
+          
+  - name: installing apache2 & php for  Ubuntu seriver
+    tags: apache,apache2,ubuntu
+    apt:
+      name: 
+        - apache2
+        - libapache2-mod-php  
+      state: latest
+    when: ansible_distribution == "Ubuntu"
+
+  - name: installing apache2 & php for CentOS server
+    tags: apache,httpd,centos
+    yum:
+      name: 
+        - httpd
+        - php
+      state: latest
+    when: ansible_distribution == "CentOS"
+
+  - name: copying web_pages 
+    tags: apache,httpd,centos
+    copy:
+      src: "{{ item }}"
+      remote_src: false
+      dest: /var/www/html/
+      owner: root
+      group: root
+      mode: 0644
+    with_fileglob:
+      - "apache-files/*"
+
+- hosts: nginx_servers
+  become: true
+  tasks:
+   
+  - name: installing epel-release
+    tags: epel,epel-release,centos
+    dnf:
+      name: epel-release
+      state: present
+  - name: installing nginx server      
+    dnf:
+      name: nginx
+      state: latest
+  - name: start nginx      
+    service:
+      name: nginx
+      state: started    
+    when: ansible_distribution == "CentOS"
+    
+  - name: copy web-content to nginx-location
+    tags: nginx,web-content
+    copy:
+      src: "{{ item }}"
+      remote_src: false
+      dest: /usr/share/nginx/html/  
+      owner: root
+      group: root
+      mode: 0644
+    with_fileglob:
+      - "nginx-files/*"
+    when: ansible_distribution == "CentOS"
+
+  - name: installing nginx server
+    tags: nginx,centos,ubuntu 
+    apt:
+      name: nginx
+      state: latest
+    when: ansible_distribution == "Ubuntu"    
+
+- hosts: ntp_servers
+  become: true
+  tasks:
+
+  - name: installing NTP server (CentOS)
+    tags: ntp,centos,ubuntu
+    package:
+      name: ntp
+      state: latest
